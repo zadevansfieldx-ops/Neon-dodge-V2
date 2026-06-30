@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#101417" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Neon Dodge" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icon.png" type="image/png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+  <title>Neon Dodge PWA</title>
+  <style>
+    :root { --bg:#0d1215; --panel:#172026; --panel2:#1f2a31; --text:#edf2f1; --muted:#9fb0ae; --accent:#63d7db; --accent-ink:#06282a; --border:rgba(255,255,255,.1); --radius:18px; }
+    * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    html,body { margin:0; padding:0; background:var(--bg); color:var(--text); font-family:Arial,sans-serif; }
+    body { min-height:100vh; padding:12px; }
+    .app { width:100%; max-width:720px; margin:0 auto; display:grid; gap:12px; }
+    .panel { background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+    .header { padding:14px 16px; }
+    .header h1 { margin:0 0 6px; font-size:24px; }
+    .header p { margin:0; color:var(--muted); font-size:14px; }
+    .hero { position:relative; aspect-ratio: 9 / 16; background:#000 url('start-screen.jpg') center/cover no-repeat; }
+    .hero::after { content:''; position:absolute; inset:0; background:linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.58)); }
+    .hero-content { position:absolute; inset:0; z-index:1; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; padding:24px; text-align:center; }
+    .hero-card { width:100%; background:rgba(8,12,15,.55); backdrop-filter: blur(10px); border:1px solid rgba(255,255,255,.12); border-radius:20px; padding:18px; }
+    .hero-card h2 { margin:0 0 8px; font-size:26px; letter-spacing:.02em; }
+    .hero-card p { margin:0 0 14px; color:#d7dcdb; font-size:14px; line-height:1.4; }
+    .btn { min-height:56px; border:0; border-radius:14px; background:var(--panel2); color:var(--text); font-size:16px; font-weight:700; width:100%; }
+    .btn.primary { background:var(--accent); color:var(--accent-ink); }
+    .game-wrap { padding:10px; position:relative; display:none; }
+    canvas { display:block; width:100%; height:auto; background:#10181d; border-radius:14px; touch-action:none; }
+    .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; padding:0 10px 10px; }
+    .stat { background:var(--panel2); border-radius:999px; text-align:center; padding:10px 8px; font-size:14px; }
+    .controls { padding:12px; display:grid; grid-template-columns:repeat(2,1fr); gap:10px; display:none; }
+    .instructions { padding:14px 16px; display:none; }
+    .instructions h2 { margin:0 0 8px; font-size:18px; }
+    .instructions p { margin:0; color:var(--muted); line-height:1.45; font-size:14px; }
+    .overlay { position:absolute; inset:10px; display:flex; align-items:center; justify-content:center; padding:18px; background:rgba(7,10,12,.36); border-radius:14px; }
+    .overlay-card { width:100%; max-width:320px; background:rgba(10,16,19,.96); border:1px solid var(--border); border-radius:18px; padding:20px; text-align:center; }
+    .overlay-card h2 { margin:0 0 8px; font-size:28px; }
+    .overlay-card p { margin:0 0 14px; color:var(--muted); font-size:14px; }
+    .hidden { display:none; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="panel header">
+      <h1>Neon Dodge</h1>
+      <p>Tap the start screen to begin.</p>
+    </div>
+    <div class="panel hero" id="startScreen">
+      <div class="hero-content">
+        <div class="hero-card">
+          <h2>TAP TO START</h2>
+          <p>Enter the game and dodge the blocks using the buttons below the screen.</p>
+          <button class="btn primary" id="heroStart">Tap to Start</button>
+        </div>
+      </div>
+    </div>
+    <div class="panel game-wrap" id="gameWrap">
+      <canvas id="game" width="720" height="820"></canvas>
+      <div class="overlay hidden" id="overlay">
+        <div class="overlay-card">
+          <h2 id="overlayTitle">Ready?</h2>
+          <p id="overlayText">Tap Start, then use the buttons below the screen.</p>
+          <button class="btn primary" id="startBtn">Start</button>
+        </div>
+      </div>
+      <div class="stats">
+        <div class="stat">Score: <span id="score">0</span></div>
+        <div class="stat">Best: <span id="best">0</span></div>
+        <div class="stat">Speed: <span id="speed">1.0x</span></div>
+      </div>
+    </div>
+    <div class="panel controls" id="controls">
+      <button class="btn" id="leftBtn">← Left</button>
+      <button class="btn" id="rightBtn">Right →</button>
+      <button class="btn" id="pauseBtn">Pause</button>
+      <button class="btn primary" id="restartBtn">Restart</button>
+    </div>
+    <div class="panel instructions" id="instructions">
+      <h2>Instructions</h2>
+      <p>Dodge the falling blocks. Use the buttons below the game. Restart starts a fresh run, and Pause freezes the game until you resume.</p>
+    </div>
+  </div>
+  <script>
+    const startScreen = document.getElementById('startScreen');
+    const gameWrap = document.getElementById('gameWrap');
+    const controls = document.getElementById('controls');
+    const instructions = document.getElementById('instructions');
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d', { alpha: false });
+    const overlay = document.getElementById('overlay');
+    const overlayTitle = document.getElementById('overlayTitle');
+    const overlayText = document.getElementById('overlayText');
+    const startBtn = document.getElementById('startBtn');
+    const heroStart = document.getElementById('heroStart');
+    const scoreEl = document.getElementById('score');
+    const bestEl = document.getElementById('best');
+    const speedEl = document.getElementById('speed');
+    const leftBtn = document.getElementById('leftBtn');
+    const rightBtn = document.getElementById('rightBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const restartBtn = document.getElementById('restartBtn');
+    let wakeLock = null;
+    async function requestWakeLock(){ try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch(e){} }
+    const input = { left:false, right:false };
+    const state = { running:false, paused:false, over:false, score:0, best:0, speed:1, spawnTimer:0, player:{ x:canvas.width/2-32, y:canvas.height-110, w:64, h:26, speed:430 }, hazards:[] };
+    function showOverlay(title, text, buttonText){ overlayTitle.textContent = title; overlayText.textContent = text; startBtn.textContent = buttonText; overlay.classList.remove('hidden'); }
+    function hideOverlay(){ overlay.classList.add('hidden'); }
+    function updateHud(){ scoreEl.textContent = Math.floor(state.score); bestEl.textContent = state.best; speedEl.textContent = state.speed.toFixed(1) + 'x'; pauseBtn.textContent = state.paused ? 'Resume' : 'Pause'; }
+    function resetGame(){ state.running = true; state.paused = false; state.over = false; state.score = 0; state.speed = 1; state.spawnTimer = 0; state.hazards = []; state.player.x = canvas.width/2 - state.player.w/2; hideOverlay(); updateHud(); requestWakeLock(); }
+    function togglePause(){ if (state.over) return; state.paused = !state.paused; if (state.paused) showOverlay('Paused', 'Tap Resume to continue.', 'Resume'); else hideOverlay(); updateHud(); }
+    function spawnHazard(){ const w = 46 + Math.random()*110; state.hazards.push({ x:Math.random()*(canvas.width-w), y:-30, w, h:20+Math.random()*16, vy:(200+Math.random()*120)*state.speed, color:Math.random()>0.5 ? '#63d7db' : '#ff6b81' }); }
+    function hit(a,b){ return a.x < b.x+b.w && a.x+a.w > b.x && a.y < b.y+b.h && a.y+a.h > b.y; }
+    function update(dt){ if (!state.running || state.paused || state.over) return; if (input.left) state.player.x -= state.player.speed*dt; if (input.right) state.player.x += state.player.speed*dt; state.player.x = Math.max(12, Math.min(canvas.width-state.player.w-12, state.player.x)); state.score += dt*10; state.speed = 1 + state.score/180; state.spawnTimer += dt; const spawnEvery = Math.max(0.22, 0.68 - state.score/220); if (state.spawnTimer >= spawnEvery){ state.spawnTimer = 0; spawnHazard(); } for (let i=state.hazards.length-1; i>=0; i--){ const hz = state.hazards[i]; hz.y += hz.vy*dt; if (hz.y > canvas.height+40) state.hazards.splice(i,1); } for (const hz of state.hazards){ if (hit(state.player, hz)){ state.over = true; state.running = false; state.best = Math.max(state.best, Math.floor(state.score)); updateHud(); showOverlay('Crashed', 'Tap Restart or Play again.', 'Play again'); return; } } state.best = Math.max(state.best, Math.floor(state.score)); updateHud(); }
+    function rect(x,y,w,h,c){ ctx.fillStyle = c; ctx.fillRect(x,y,w,h); }
+    function draw(){ ctx.fillStyle = '#10181d'; ctx.fillRect(0,0,canvas.width,canvas.height); ctx.strokeStyle='rgba(255,255,255,.06)'; for (let x=0; x<=canvas.width; x+=48){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke(); } for (let y=0; y<=canvas.height; y+=48){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(canvas.width,y); ctx.stroke(); } for (const hz of state.hazards) rect(hz.x, hz.y, hz.w, hz.h, hz.color); rect(state.player.x, state.player.y, state.player.w, state.player.h, '#edf2f1'); rect(state.player.x+10, state.player.y+5, state.player.w-20, 5, '#63d7db'); }
+    function bindHold(btn,key){ const on = (e)=>{e.preventDefault(); input[key]=true;}; const off=(e)=>{e.preventDefault(); input[key]=false;}; btn.addEventListener('touchstart', on, {passive:false}); btn.addEventListener('touchend', off, {passive:false}); btn.addEventListener('touchcancel', off, {passive:false}); btn.addEventListener('mousedown', on); btn.addEventListener('mouseup', off); btn.addEventListener('mouseleave', off); }
+    bindHold(leftBtn,'left'); bindHold(rightBtn,'right'); startBtn.addEventListener('click', resetGame); heroStart.addEventListener('click', () => { startScreen.classList.add('hidden'); gameWrap.style.display='block'; controls.style.display='grid'; instructions.style.display='block'; resetGame(); }); restartBtn.addEventListener('click', resetGame); pauseBtn.addEventListener('click', togglePause); window.addEventListener('keydown', (e)=>{ const k=e.key.toLowerCase(); if (k==='arrowleft' || k==='a') input.left=true; if (k==='arrowright' || k==='d') input.right=true; if (k==='r') resetGame(); if (k==='p') togglePause(); }); window.addEventListener('keyup', (e)=>{ const k=e.key.toLowerCase(); if (k==='arrowleft' || k==='a') input.left=false; if (k==='arrowright' || k==='d') input.right=false; });
+    let last = performance.now(); function loop(now){ const dt = Math.min(0.033, (now-last)/1000); last = now; update(dt); draw(); requestAnimationFrame(loop); }
+    updateHud(); showOverlay('Ready?', 'Tap Start, then use the buttons below the screen.', 'Start'); requestAnimationFrame(loop);
+    window.addEventListener('load', requestWakeLock); document.addEventListener('visibilitychange', ()=>{ if (!document.hidden) requestWakeLock(); });
+  </script>
+</body>
+</html>

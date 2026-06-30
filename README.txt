@@ -1,0 +1,1 @@
+Upload index.html, manifest.json, sw.js, icon.png, apple-touch-icon.png, and start-screen.jpg to the repo root.
